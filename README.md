@@ -40,7 +40,7 @@ Ctrl+Alt+Shift+V | Comp Clipboard Paste
 
 ## Installation
 1. Download the latest release of MediaPanel.
-2. Place the context of the Scripts folder into your AE Scripts folder.
+2. Unzip the contents of the Scripts folder into your AE Scripts folder.
     - windows: `%APPDATA%\Adobe\After Effects\<version>\Scripts`
     - mac: `~/Library/Preferences/Adobe/After Effects/<version>/Scripts`
 

@@ -1,5 +1,5 @@
-#script "Media Belt"
 #include "(MediaBelt)/lib.jsx"
+
 
 (function Belt(thisObj) {
   function init(thisObj) {
@@ -195,7 +195,13 @@
       settings = comp_clipboard_copy();
       res_width_edit.text = settings.width;
       res_height_edit.text = settings.height;
-      fps_dropdown.selection.text = settings.frameRate;
+      // Set dropdown item from text
+      for (var i = 0; i < fps_dropdown.items.length; i++) {
+        if (fps_dropdown.items[i].text === settings.frameRate.toString()) {
+          fps_dropdown.selection = i;
+          break;
+        }
+      }
       sframe_edit.text = settings.startFrame;
       duration_edit.text = settings.duration;
     };

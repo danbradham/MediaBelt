@@ -1,4 +1,4 @@
-const Metadata = {
+var Metadata = {
   name: "MediaBelt",
   author: "Dan Bradham",
   version: "26.0.0",
@@ -19,12 +19,39 @@ function get_user_data_file(filename) {
 }
 
 /**
+ * Returns true if the item is a CompItem.
+ * @param {Item} item - The item to check.
+ * @returns {boolean} - True if the item is a CompItem.
+ */
+function is_CompItem(item) {
+  return item instanceof CompItem;
+}
+
+/**
+ * Returns true if the item is a FootageItem.
+ * @param {Item} item - The item to check.
+ * @returns {boolean} - True if the item is a FootageItem.
+ */
+function is_FootageItem(item) {
+  return item instanceof FootageItem;
+}
+
+/**
+ * Returns true if the item is an AVItem (FootageItem or CompItem).
+ * @param {Item} item - The item to check.
+ * @returns {boolean} - True if the item is an AVItem.
+ */
+function is_AVItem(item) {
+  return item instanceof FootageItem || item instanceof CompItem;
+}
+
+/**
  * Checks if a given name and path represent a sequence.
  * @param {string} name - The name of the item.
  * @param {string} path - The file path of the item.
  * @returns {boolean} - Returns true if the name or path indicates a sequence, otherwise false.
  */
-function is_sequence(name, path) {
+function is_image_sequence(name, path) {
   var matches = name.match(/\[\d+\-\d+\]/g);
   if (matches && matches.length > 0) {
     return true;
@@ -77,6 +104,41 @@ function change_footage_version(item, step) {
     if (new_source_file.exists) {
       break;
     }
+
+    // Check if the source folder we are looking for exists....
+    var new_source_folder = new_source_file.parent;
+    if (!new_source_folder.exists) {
+      continue;
+    }
+
+    // Find first frame if we didn't hit a frame in the last attempt
+    // Build a filename pattern that we can use to find a file.
+    var frame_matches = new_source_path.match(/[_.](\d+)[_.]/);
+    if (!frame_matches || matches.length === 0) {
+      continue;
+    }
+
+    var last_frame_match = frame_matches[frame_matches.length - 1];
+    var last_frame_regex = new RegExp(last_frame_match, "g");
+    var filename_pattern = new_source_file.name.replace(last_frame_regex, "*");
+
+    var new_source_files = new_source_folder
+      .getFiles(filename_pattern)
+      .sort(function (a, b) {
+        return a.name.localeCompare(b.name);
+      });
+    if (new_source_files.length === 0) {
+      continue;
+    }
+
+    // Iterate over files in next version directory
+    // to find a frame we can use to import.
+    for (var i = 0; i < new_source_files.length; i++) {
+      var new_source_file = new_source_files[i];
+      if (new_source_file.name.match(filename_pattern)) {
+        break;
+      }
+    }
   }
 
   if (!new_source_file.exists) {
@@ -85,7 +147,7 @@ function change_footage_version(item, step) {
 
   if (item.mainSource.isStill) {
     item.replace(new_source_file);
-  } else if (is_sequence(item.name, item.file.fsName)) {
+  } else if (is_image_sequence(item.name, item.file.fsName)) {
     item.replaceWithSequence(new_source_file, false);
   } else {
     item.replace(new_source_file);
@@ -124,10 +186,10 @@ function change_selected_item_versions(step) {
   var selected_items = app.project.selection;
   for (var i = 0; i < selected_items.length; i++) {
     item = selected_items[i];
-    if (item instanceof FootageItem) {
+    if (is_FootageItem(item)) {
       change_footage_version(item, step);
     }
-    if (item instanceof CompItem) {
+    if (is_CompItem(item)) {
       change_comp_version(item, step);
     }
   }
@@ -144,7 +206,7 @@ function search_replace_selected_items(search, replace) {
   var selected_items = app.project.selection;
   for (var i = 0; i < selected_items.length; i++) {
     item = selected_items[i];
-    if (item instanceof FootageItem || item instanceof CompItem) {
+    if (is_AVItem(item)) {
       var new_name = item.name.replace(search, replace);
       item.name = new_name;
     }
@@ -161,7 +223,7 @@ function prefix_selected_items(prefix) {
   var selected_items = app.project.selection;
   for (var i = 0; i < selected_items.length; i++) {
     item = selected_items[i];
-    if (item instanceof FootageItem || item instanceof CompItem) {
+    if (is_AVItem(item)) {
       var new_name = prefix + item.name;
       item.name = new_name;
     }
@@ -179,7 +241,7 @@ function suffix_selected_items(suffix) {
   var selected_items = app.project.selection;
   for (var i = 0; i < selected_items.length; i++) {
     item = selected_items[i];
-    if (item instanceof FootageItem || item instanceof CompItem) {
+    if (is_AVItem(item)) {
       var new_name = item.name + suffix;
       item.name = new_name;
     }
@@ -206,7 +268,7 @@ function apply_comp_settings(settings) {
   var selected_items = app.project.selection;
   for (var i = 0; i < selected_items.length; i++) {
     item = selected_items[i];
-    if (item instanceof CompItem) {
+    if (is_CompItem(item)) {
       if ("width" in settings) {
         item.width = settings.width;
       }
@@ -233,14 +295,21 @@ function apply_comp_settings(settings) {
  * @param {CompItem} item - The comp item to get settings from.
  * @returns {Object} - The settings of the comp item.
  */
-function comp_get_settings(item) {
-  return {
+function item_get_settings(item) {
+  // AVItem settings
+  var settings = {
     width: item.width,
     height: item.height,
-    frameRate: item.frameRate,
-    startFrame: item.displayStartFrame,
-    duration: item.duration * item.frameRate,
+    frameRate: Number(item.frameRate.toFixed(4)),
+    duration: Math.floor(item.duration * item.frameRate),
+    startFrame: 0,
   };
+
+  // CompItem settings
+  if (is_CompItem(item)) {
+    settings.startFrame = item.displayStartFrame;
+  }
+  return settings;
 }
 
 /**
@@ -256,9 +325,11 @@ function comp_clipboard_file() {
  */
 function comp_clipboard_copy() {
   var selected_items = app.project.selection;
-  if (selected_items.length > 0 && selected_items[0] instanceof CompItem) {
-    var item = selected_items[0];
-    var settings = comp_get_settings(item);
+  if (selected_items.length === 0) return;
+
+  var item = selected_items[0];
+  if (is_AVItem(item)) {
+    var settings = item_get_settings(item);
     var file = comp_clipboard_file();
     file.open("w");
     file.write(JSON.stringify(settings));
@@ -277,5 +348,3 @@ function comp_clipboard_paste() {
   file.close();
   apply_comp_settings(settings);
 }
-
-/** WHAT */

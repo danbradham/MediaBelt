@@ -24,6 +24,10 @@ Essential tools for working with Media in After Effects.
 
 All tools in the MediaBelt apply to each selected Comp and Footage Item in the Project Panel. Each operation has a dedicated row, making it easy to apply fine-grained changes.
 
+<p align="center">
+    <img src="res/MediaBelt_demo.gif"/>
+</p>
+
 ## Setting Up Keyboard Shotcuts
 1. Open the Keyboard Shortcuts dialog in AE.
 2. Search for MediaBelt.

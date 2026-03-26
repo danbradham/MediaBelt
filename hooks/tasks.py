@@ -1,5 +1,6 @@
 import glob
 import os
+import re
 import shutil
 import sys
 
@@ -54,7 +55,7 @@ def install():
 
     check_platform()
 
-    source_map = get_source_map(module_path("..", "Scripts"))
+    source_map = get_source_map(module_path("../Scripts"))
 
     for script_dir in list_AE_scripts_directories():
         for rsrc_file, src_file in source_map.items():
@@ -79,11 +80,39 @@ def uninstall():
                     os.unlink(normalize(root, file))
 
 
+def version(label):
+    version = label.lstrip("v")
+
+    updates = [
+        (module_path("../module.yml"), r"version: ([A-Za-z0-9.-]+)$"),
+        (module_path("../Scripts/ScriptUI Panels/(MediaBelt)/lib.jsx"), r'version: "([A-Za-z0-9.-]+)",$')
+    ]
+    for file, regex in updates:
+        with open(file, "r", encoding="utf-8") as f:
+            contents = f.read()
+
+        match = re.search(regex, contents, re.MULTILINE)
+        if not match:
+            raise RuntimeError(f"Failed to update version in {file}")
+
+        old_version_string = match.group()
+        new_version_string = old_version_string.replace(match.group(1), version)
+        new_contents = contents.replace(old_version_string, new_version_string)
+
+        with open(file, "w", encoding="utf-8") as f:
+            f.write(new_contents)
+
+
 if __name__ == "__main__":
     task_name = sys.argv[1] if len(sys.argv) > 1 else None
     if task_name == "install":
         install()
     elif task_name == "uninstall":
         uninstall()
+    elif task_name == "version":
+        if len(sys.argv) < 3:
+            print("Usage: tasks.py version <label>")
+            sys.exit(1)
+        version(sys.argv[2])
     else:
         print("Usage: tasks.py [install|uninstall]")

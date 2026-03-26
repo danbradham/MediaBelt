@@ -17,6 +17,8 @@ release tag:
     git add .
     git commit -m "Release {{tag}}"
     git tag --force {{tag}}
+    git push
+    git push --tags --force
 
 deploy:
     echo Deploying to Brand New School Flow Production Tracking site....

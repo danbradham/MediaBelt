@@ -3,6 +3,23 @@ var Metadata = {
   author: "Dan Bradham",
   version: "26.0.2",
 };
+var CommonVideoFormats = [
+  "mov",
+  "mp4",
+  "avi",
+  "mkv",
+  "webm",
+  "qt",
+  "yuv",
+  "m4v",
+  "mpg",
+  "mpeg",
+  "mp3",
+  "mxf",
+  "flv",
+  "f4v",
+  "mpv",
+];
 
 /** Get user data folder. */
 function get_user_data_folder() {
@@ -46,19 +63,43 @@ function is_AVItem(item) {
 }
 
 /**
- * Checks if a given name and path represent a sequence.
- * @param {string} name - The name of the item.
- * @param {string} path - The file path of the item.
- * @returns {boolean} - Returns true if the name or path indicates a sequence, otherwise false.
+ * Checks if a given name or path represent a sequence.
+ * @param {string} path - A file name or path.
+ * @returns {boolean}
  */
-function is_image_sequence(name, path) {
-  var matches = name.match(/\[\d+\-\d+\]/g);
+function is_image_sequence(path) {
+  // Quick check against video file extensions.
+  var ext = path.split(".").pop();
+  if (ext in CommonVideoFormats) {
+    return false;
+  }
+
+  // Check if we have a frame sequence range in the name like [0-100]
+  var matches = path.match(/\[\d+\-\d+\]/g);
   if (matches && matches.length > 0) {
     return true;
   }
 
+  // Check if the file path has a sequence number like .0001.
   var matches = path.match(/\.\d+\./g);
-  return matches && matches.length > 0;
+  if (matches && matches.length > 0) {
+    return true;
+  }
+
+  // We didn't detect an image sequence sucka must be a video.
+  return false;
+}
+
+/**
+ * Checks if a FootageItem is a file sequence.
+ * @param {FootageItem} item - The footage item to check.
+ * @returns {boolean}
+ */
+function is_item_image_sequence(item) {
+  return (
+    !item.mainSource.isStill &&
+    (is_image_sequence(item.name) || is_image_sequence(item.file.fsName))
+  );
 }
 
 /**
@@ -82,6 +123,7 @@ function pad(padding, number) {
  * @param {number} step - The step value to increment or decrement the version by.
  */
 function change_footage_version(item, step) {
+  source_is_sequence = is_item_image_sequence(item);
   source_path = item.file.fsName;
   var matches = source_path.match(/v(\d+)/g);
 
@@ -108,6 +150,12 @@ function change_footage_version(item, step) {
     // Check if the source folder we are looking for exists....
     var new_source_folder = new_source_file.parent;
     if (!new_source_folder.exists) {
+      continue;
+    }
+
+    // We can skip the frame munging if we are not dealing with a sequence
+    // and just try the next version.
+    if (!source_is_sequence) {
       continue;
     }
 
@@ -145,9 +193,7 @@ function change_footage_version(item, step) {
     return;
   }
 
-  if (item.mainSource.isStill) {
-    item.replace(new_source_file);
-  } else if (is_image_sequence(item.file.name, item.file.fsName)) {
+  if (source_is_sequence) {
     item.replaceWithSequence(new_source_file, false);
   } else {
     item.replace(new_source_file);

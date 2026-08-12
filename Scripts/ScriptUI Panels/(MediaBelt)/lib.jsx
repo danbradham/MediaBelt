@@ -1,7 +1,7 @@
 var Metadata = {
   name: "MediaBelt",
   author: "Dan Bradham",
-  version: "26.0.4",
+  version: "26.1.0",
 };
 var CommonVideoFormats = [
   "mov",
@@ -393,4 +393,297 @@ function comp_clipboard_paste() {
   var settings = JSON.parse(file.read());
   file.close();
   apply_comp_settings(settings);
+}
+
+
+/**
+ * Capture API.
+ */
+var MEDIABELT_NULL = "MediaBelt";
+
+/**
+ * Get the global MediaBelt Null object.
+ */
+function get_mediabelt_item() {
+  for (var i = 1; i <= app.project.items.length; i++) {
+    var item = app.project.items[i];
+    if (item.name == MEDIABELT_NULL) {
+      return item;
+    }
+  }
+}
+
+/**
+ * Get a comp's current frame number.
+ */
+function get_current_frame(comp) {
+  return timeToFrame(comp.time, comp.frameDuration);
+}
+/**
+ * Converts time to frame number.
+ */
+function timeToFrame(time, frameDuration) {
+  return Math.round(time / frameDuration);
+}
+
+/**
+ * Converts frame number to time.
+ */
+function frameToTime(frame, frameDuration) {
+  return frame * frameDuration;
+}
+
+/**
+ * Gets the MediaBelt layer from a comp item.
+ */
+function get_mediabelt_layer(comp) {
+  var result = comp.layers.byName(MEDIABELT_NULL);
+  if (result == null) {
+    for (var i = 1; i <= comp.layers.length; i++) {
+      var layer = comp.layers[i];
+      var is_media_mediabelt_layer = false;
+      for (var j = 1; j <= layer.effect.numProperties; j++) {
+        var effect = layer.effect.property(j);
+        if (effect.name === "is_mediabelt_layer") {
+          is_media_mediabelt_layer = true;
+          break;
+        }
+      }
+      if (is_media_mediabelt_layer) {
+        result = layer;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Adds a MediaBelt null layer to the comp item.
+ */
+function add_mediabelt_layer(comp) {
+  app.beginUndoGroup("create_mediabelt_layer");
+  var layer;
+  var mediabelt_null = get_mediabelt_item();
+  if (mediabelt_null == null) {
+    layer = comp.layers.addNull();
+    layer.name = MEDIABELT_NULL;
+    layer.source.name = MEDIABELT_NULL;
+    layer.enabled = false;
+  } else {
+    layer = comp.layers.add(mediabelt_null);
+    layer.enabled = false;
+  }
+
+  var effect = layer.effect.addProperty("ADBE Checkbox Control");
+  effect.property("checkbox").setValue(true);
+  effect.name = "is_mediabelt_layer";
+  app.endUndoGroup();
+
+  return layer;
+}
+
+/**
+ * Gets or adds a MediaBelt null layer to the comp item.
+ */
+function get_or_add_mediabelt_layer(comp) {
+  var layer = get_mediabelt_layer(comp);
+  if (layer == null) {
+    layer = add_mediabelt_layer(comp);
+  }
+  return layer;
+}
+
+/**
+ * Checks if a still exists at the specified frame.
+ */
+function has_still(layer, frame, frameDuration) {
+  if (get_still(layer, frame, frameDuration) == null) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Gets marker info for a specific still or returns null if not found.
+ */
+function get_still(layer, frame, frameDuration) {
+  if (layer.marker.numKeys > 0) {
+    var time = frameToTime(frame, frameDuration);
+    var marker_idx = layer.marker.nearestKeyIndex(time);
+    var marker_time = layer.marker.keyTime(marker_idx);
+    if (Math.abs(time - marker_time) < 0.0001) {
+      return {index: marker_idx, frame: frame, time: time};
+    }
+  }
+}
+
+/**
+ * Adds a still at the specified frame to the comp item's Mediabelt layer.
+ */
+function add_still(comp, frame) {
+  if (comp == null) {
+    alert("No active CompItem.");
+    return;
+  }
+  if (frame == null) {
+    frame = get_current_frame(comp);
+  }
+  var layer = get_or_add_mediabelt_layer(comp);
+  if (!has_still(layer, frame, comp.frameDuration)) {
+    var marker = new MarkerValue("");
+    layer.marker.setValueAtTime(frameToTime(frame, comp.frameDuration), marker);
+  }
+}
+
+/**
+ * Removes a still at the specified frame from the comp item's Mediabelt layer.
+ */
+function remove_still(comp, frame) {
+  if (comp == null) {
+    alert("No active CompItem.");
+    return;
+  }
+  if (frame == null) {
+    frame = get_current_frame(comp);
+  }
+  var layer = get_or_add_mediabelt_layer(comp);
+  var mark = get_still(layer, frame, comp.frameDuration);
+  if (mark !== null) {
+    layer.marker.removeKey(mark.index);
+  }
+}
+
+/**
+ * Removes all stills from the comp item's Mediabelt layer.
+ */
+function clear_stills(comp) {
+  if (comp == null) {
+    alert("No active CompItem.");
+    return;
+  }
+  var layer = get_or_add_mediabelt_layer(comp);
+  for (var i = layer.marker.numKeys; i >= 1; i--) {
+      layer.marker.removeKey(i);
+  }}
+
+/**
+ * Navigates to the previous still in the comp item.
+ */
+function goto_prev_still(comp) {
+  if (comp == null) {
+    alert("No active CompItem.");
+    return;
+  }
+
+  var current_frame = timeToFrame(comp.time, comp.frameDuration);
+  var markers = get_stills(comp);
+  markers.reverse();
+  for (var i = 0; i < markers.length; i++) {
+    var marker = markers[i];
+    if (marker.frame < current_frame) {
+      comp.time = marker.time;
+      return;
+    }
+  }
+}
+
+/**
+ * Navigates to the next still in the comp item.
+ */
+function goto_next_still(comp) {
+  if (comp == null) {
+    alert("No active CompItem.");
+    return;
+  }
+
+  var current_frame = timeToFrame(comp.time, comp.frameDuration);
+  var markers = get_stills(comp);
+  for (var i = 0; i < markers.length; i++) {
+    var marker = markers[i];
+    if (marker.frame > current_frame) {
+      comp.time = marker.time;
+      return;
+    }
+  }
+}
+
+/**
+ * Gets an array of all stills in the comp item's Mediabelt layer.
+ */
+function get_stills(comp) {
+  var layer = get_mediabelt_layer(comp);
+  var markers = [];
+  for (var i = 1; i <= layer.marker.numKeys; i++) {
+    markers.push({
+      index: i,
+      time: layer.marker.keyTime(i),
+      frame: timeToFrame(layer.marker.keyTime(i), comp.frameDuration)
+    });
+  }
+  return markers;
+}
+
+/**
+ * Ensures that a folder exists at the specified path.
+ */
+function ensure_folder_exists(path) {
+  var folder = Folder(path);
+  if (!folder.exists) {
+    folder.create();
+  }
+  return folder;
+}
+
+/**
+ * Export stills to the specified folder.
+ */
+function export_stills(folder_path, selected_comps) {
+  var folder = ensure_folder_exists(folder_path);
+
+  // Collect comps
+  var comps = [];
+  if (selected_comps) {
+    var selected_items = app.project.selection;
+    for (var i = 0; i < selected_items.length; i++) {
+      item = selected_items[i];
+      if (is_CompItem(item)) {
+        comps.push(item);
+      }
+    }
+  } else {
+    if (is_CompItem(app.project.activeItem)) {
+      comps.push(app.project.activeItem);
+    }
+  }
+
+  for (var comp_idx = 0; comp_idx < comps.length; comp_idx++) {
+    var comp = comps[comp_idx];
+
+    // Store resolutionFactor and set to Full
+    var comp_old_resolution_factor = comp.resolutionFactor;
+    comp.resolutionFactor = [1, 1];
+
+    // Export stills one by one
+    var markers = get_stills(comp);
+    for (var i = 0; i < markers.length; i++) {
+      var marker = markers[i];
+      var file = new File(folder.fsName + "/" + comp.name + "." + pad(marker.frame, 4) + ".png");
+      comp.saveFrameToPng(marker.time, file);
+    }
+
+    // Restore resolution factor
+    comp.resolutionFactor = comp_old_resolution_factor;
+  }
+}
+
+/**
+  * Pad a number...
+  */
+function pad(num, size) {
+  var s = num + "";
+  while (s.length < size) {
+    s = "0" + s;
+  }
+  return s;
 }

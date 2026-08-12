@@ -21,5 +21,5 @@ release tag:
     git push --tags --force
 
 deploy:
-    echo Deploying to Brand New School Flow Production Tracking site....
+    echo "Deploying to Brand New School Flow Production Tracking site...."
     cpenv publish . --overwrite --to_repo=bns_shotgun

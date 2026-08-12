@@ -636,6 +636,29 @@ function ensure_folder_exists(path) {
 }
 
 /**
+ * Select all comps with Mediabelt layer.
+ */
+function select_comps_with_stills() {
+  var item = get_mediabelt_item();
+  if (item == null) {
+    alert("Add Markers to comps first.")
+    return;
+  }
+
+  // Deselect everything...
+  var selection = app.project.selection;
+  for (var i = 0; i < selection.length; i++) {
+    selection[i].selected = false;
+  }
+
+  // Selected comps where Mediabelt exists...
+  var comps = item.usedIn;
+  for (var i = 0; i < comps.length; i++) {
+    comps[i].selected = true;
+  }
+}
+
+/**
  * Export stills to the specified folder.
  */
 function export_stills(folder_path, selected_comps) {
@@ -668,22 +691,11 @@ function export_stills(folder_path, selected_comps) {
     var markers = get_stills(comp);
     for (var i = 0; i < markers.length; i++) {
       var marker = markers[i];
-      var file = new File(folder.fsName + "/" + comp.name + "." + pad(marker.frame, 4) + ".png");
+      var file = new File(folder.fsName + "/" + comp.name + "." + pad(4, marker.frame) + ".png");
       comp.saveFrameToPng(marker.time, file);
     }
 
     // Restore resolution factor
     comp.resolutionFactor = comp_old_resolution_factor;
   }
-}
-
-/**
-  * Pad a number...
-  */
-function pad(num, size) {
-  var s = num + "";
-  while (s.length < size) {
-    s = "0" + s;
-  }
-  return s;
 }

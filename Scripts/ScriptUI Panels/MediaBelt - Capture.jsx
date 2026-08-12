@@ -53,6 +53,20 @@
       clear_stills(app.project.activeItem);
     };
 
+    var select_panel = ui.add("panel", undefined, "Select");
+    select_panel.orientation = "column";
+    select_panel.alignment = ["fill", "top"];
+    select_panel.alignChildren = ["fill", ""];
+    var select_row = select_panel.add("group", undefined, "Select Row");
+    select_row.orientation = "row";
+    select_row.alignChildren = ["fill", ""];
+
+    var button_select_comps = select_row.add("button", undefined, "All Comps with Markers")
+    button_select_comps.alignment = ["center", ""];
+    button_select_comps.onClick = function () {
+      select_comps_with_stills();
+    };
+
     var export_panel = ui.add("panel", undefined, "Export");
     export_panel.orientation = "column";
     export_panel.alignment = ["fill", "top"];

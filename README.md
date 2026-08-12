@@ -19,12 +19,13 @@ Essential tools for working with Media in After Effects.
 - Apply settings to multiple CompItems at once.
 - Copy and Paste CompItem settings.
 - Includes scripts using the MediaBelt library so you can easily bind keyboard shortcuts.
+- Still capture tool, mark frames in comps and export as PNG.
 
 ## Usage
 1. Open the Windows menu and launched the `MediaBelt.jsx` panel.
 2. Dock the panel wherever you like. For convenience, dock it near the Project Panel!
 
-All tools in the MediaBelt apply to each selected Comp and Footage Item in the Project Panel. Each operation has a dedicated row, making it easy to apply fine-grained changes.
+All tools in MediaBelt apply to each selected Comp and Footage Item in the Project Panel. Each operation has a dedicated row, making it easy to apply fine-grained changes.
 
 <p align="center">
     <img src="res/MediaBelt_demo.gif"/>

@@ -1,7 +1,7 @@
 var Metadata = {
   name: "MediaBelt",
   author: "Dan Bradham",
-  version: "26.1.0",
+  version: "26.1.1",
 };
 var CommonVideoFormats = [
   "mov",
